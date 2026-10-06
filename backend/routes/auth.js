@@ -42,9 +42,6 @@ router.get("/login", (req, res) => {
 
     const authorizationUrl = `${process.env.SALESFORCE_LOGIN_URL}/services/oauth2/authorize?${params.toString()}`;
 
-    // console.log("OAuth redirect URI:", process.env.SALESFORCE_CALLBACK_URL);
-    // console.log("OAuth authorization URL:", authorizationUrl);
-
     res.redirect(authorizationUrl);
   } catch (error) {
     console.error("OAuth login error:", error);
@@ -59,6 +56,7 @@ router.get("/login", (req, res) => {
 router.get("/callback", async (req, res) => {
   try {
     const { code, state, error, error_description } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
     if (error) {
       return res.status(400).json({
@@ -102,10 +100,15 @@ router.get("/callback", async (req, res) => {
     delete req.session.oauthState;
     delete req.session.codeVerifier;
 
-    res.json({
-      success: true,
-      message: "Salesforce authentication successful",
-      instanceUrl: tokenData.instance_url,
+    req.session.save((saveError) => {
+      if (saveError) {
+        console.error("Session save error:", saveError);
+        return res.status(500).json({
+          error: "Unable to save Salesforce session",
+        });
+      }
+
+      res.redirect(frontendUrl);
     });
   } catch (error) {
     console.error(

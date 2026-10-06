@@ -2,42 +2,67 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
+const MongoStore = require("connect-mongo").default;
 const authRoutes = require("./routes/auth");
 const recordsRoutes = require("./routes/records");
 const app = express();
 const PORT = process.env.PORT || 5050;
+const isProduction = process.env.NODE_ENV === "production";
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: frontendUrl,
     credentials: true,
   }),
 );
+
 app.use(express.json());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "development-secret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: false,
-      maxAge: 1000 * 60 * 60,
-    },
-  }),
-);
+
+const sessionOptions = {
+  secret: process.env.SESSION_SECRET || "development-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60,
+  },
+};
+
+if (process.env.MONGODB_URI) {
+  sessionOptions.store = MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: "sessions",
+    ttl: 60 * 60,
+  });
+} else if (isProduction) {
+  throw new Error("MONGODB_URI is required in production");
+}
+
+app.use(session(sessionOptions));
+
 app.get("/", (req, res) => {
   res.json({
     message: "Salesforce CRUD API is running",
   });
 });
+
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     message: "Backend is working",
   });
 });
+
 app.use("/auth", authRoutes);
 app.use("/api/records", recordsRoutes);
+
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

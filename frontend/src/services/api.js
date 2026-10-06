@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
+
 const api = axios.create({
-  baseURL: "http://localhost:5050",
+  baseURL: API_URL,
   withCredentials: true,
 });
 
@@ -11,7 +13,7 @@ export async function getAuthStatus() {
 }
 
 export async function login() {
-  window.location.href = "http://localhost:5050/auth/login";
+  window.location.href = `${API_URL}/auth/login`;
 }
 
 export async function logout() {
@@ -32,7 +34,6 @@ export async function getRecords(objectName, offset = 0) {
 
 export async function getRecord(objectName, recordId) {
   const response = await api.get(`/api/records/${objectName}/${recordId}`);
-
   return response.data;
 }
 
@@ -46,13 +47,11 @@ export async function updateRecord(objectName, recordId, fields) {
     `/api/records/${objectName}/${recordId}`,
     fields,
   );
-
   return response.data;
 }
 
 export async function deleteRecord(objectName, recordId) {
   const response = await api.delete(`/api/records/${objectName}/${recordId}`);
-
   return response.data;
 }
 
